@@ -364,8 +364,8 @@ namespace sht {
 		float const * lat() const {return CompoundData::nthByteAs<float const*>(16);}
 		float       * lat()       {return CompoundData::nthByteAs<float      *>(16);}
 
-		//@brief : active rotation applied to spherical signal
-		//@return: rotation as {w,x,y,z} pijk = -1 quaternion
+		//@brief : rotation applied to spherical signal {sense from material data}
+		//@return: rotation as {w,x,y,z} quaternion {pijk from material data}
 		float const * rot() const {return CompoundData::nthByteAs<float const*>(40);}
 		float       * rot()       {return CompoundData::nthByteAs<float      *>(40);}
 
@@ -425,10 +425,20 @@ namespace sht {
 		const uint8_t& sgEff() const {return CompoundData::nthByteAs<uint8_t>(1);}
 		      uint8_t& sgEff()       {return CompoundData::nthByteAs<uint8_t>(1);}
 
+		//@brief : access quaternion pijk (+/-1) for crystal rotations
+		//@return: \hat{i} * \hat{j}
+		const int8_t& pijk() const {return CompoundData::nthByteAs<int8_t>(2);}
+		      int8_t& pijk()       {return CompoundData::nthByteAs<int8_t>(2);}
+
+		//@brief : access rotation sense (active or passive)
+		//@return: 97 (ascii 'a') for active, 112 (ascii 'p') for passive
+		const int8_t& rotSense() const {return CompoundData::nthByteAs<int8_t>(3);}
+		      int8_t& rotSense()       {return CompoundData::nthByteAs<int8_t>(3);}
+
 		//@brief : access reserved bytes
-		//@return: pointer to start of reserved bytes (6x int8_t)
-		int8_t const * resBytes() const {return CompoundData::nthByteAs<int8_t const*>(2);}
-		int8_t       * resBytes()       {return CompoundData::nthByteAs<int8_t      *>(2);}
+		//@return: pointer to start of reserved bytes (4x int8_t)
+		int8_t const * resBytes() const {return CompoundData::nthByteAs<int8_t const*>(4);}
+		int8_t       * resBytes()       {return CompoundData::nthByteAs<int8_t      *>(4);}
 
 		//@brief: sanity check the contents of this data block (throw if not)
 		void sanityCheck() const;
@@ -1720,8 +1730,10 @@ namespace sht {
 	//@param lat: lattice parameters {a, b, a, alpha, beta, gamma} (in nm / degree)
 	void File::setEMDataMat(int32_t sgN, int32_t sgS, int32_t nAt, int32_t * aTy, float * aCd, float * lat) {
 		//set material to single crystal
-		material.numXtal() =           1  ;
-		material.sgEff  () = (uint8_t) sgN;
+		material.numXtal () =           1  ;
+		material.sgEff   () = (uint8_t) sgN;
+		material.pijk    () =           1  ;//EMsoft is always pijk +1
+		material.rotSense() =           112;//EMsoft is always passive
 		material.xtals.resize(1);
 		CrystalData& xtal = material.xtals.front();
 

@@ -1253,7 +1253,9 @@ namespace sht {
 	void MaterialData::sanityCheck() const {
 		if(sgEff() < 1 || sgEff() > 230) throw std::runtime_error("invalid effective space group number");
 		if(numXtal() != xtals.size()) throw std::runtime_error("# crystals != crystals size");
-		for(size_t i = 0; i < 6; i++) if(0 != resBytes()[i]) throw std::runtime_error("non-zero reserved bytes");
+		if(! (1 == pijk() || -1 == pijk())) throw std::runtime_error("pijk must be +/-1");
+		if(! (97 == rotSense() || 112 == rotSense())) throw std::runtime_error("rotation sense must be 'a' or 'p'");
+		for(size_t i = 0; i < 4; i++) if(0 != resBytes()[i]) throw std::runtime_error("non-zero reserved bytes");
 	}
 
 	//@brief    : compute the CRC-32C hash of this data block

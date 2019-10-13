@@ -630,7 +630,7 @@ namespace sht {
 		//@brief : call the void return version of EMsoftEBSD catching any exceptions
 		//@return: 0 if no exceptions were thrown, 1 otherwise
 		//@note  : for fortran interoperability
-		static int EMsoftEBSDRet(char * fn, char const * nt, char const* doi
+		static int EMsoftEBSDRet(char * fn, char const * nt, char const* doi,
 		                         int32_t sgN, int32_t sgS, int32_t nAt, int32_t * aTy, float * aCd, float * lat,
 		                         float * fprm, int32_t * iprm,
 		                         int32_t bw, double * alm);

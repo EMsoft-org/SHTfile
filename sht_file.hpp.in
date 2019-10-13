@@ -611,6 +611,7 @@ namespace sht {
 		//@brief    : write a file using EMsoft style EBSD data
 		//@prief fn : file name to write
 		//@prief nt : notes string
+		//@prief doi: doi string
 		//@param sgN: space group number [1,230]
 		//@param sgS: space group setting [1,2]
 		//@param nAt: number of atoms
@@ -621,7 +622,7 @@ namespace sht {
 		//@param iprm: integer parameters {# electrons, electron multiplier, numsx, npx, latgridtype}
 		//@param bw : bandwidth
 		//@param alm: actual harmonics (uncompressed format)
-		static void EMsoftEBSD(char * fn, char const * nt, 
+		static void EMsoftEBSD(char * fn, char const * nt, char const * doi,
 		                       int32_t sgN, int32_t sgS, int32_t nAt, int32_t * aTy, float * aCd, float * lat,
 		                       float * fprm, int32_t * iprm,
 		                       int32_t bw, double * alm);
@@ -629,7 +630,7 @@ namespace sht {
 		//@brief : call the void return version of EMsoftEBSD catching any exceptions
 		//@return: 0 if no exceptions were thrown, 1 otherwise
 		//@note  : for fortran interoperability
-		static int EMsoftEBSDRet(char * fn, char const * nt, 
+		static int EMsoftEBSDRet(char * fn, char const * nt, char const* doi
 		                         int32_t sgN, int32_t sgS, int32_t nAt, int32_t * aTy, float * aCd, float * lat,
 		                         float * fprm, int32_t * iprm,
 		                         int32_t bw, double * alm);
@@ -1831,6 +1832,7 @@ namespace sht {
 	//@brief    : write a file using EMsoft style EBSD data
 	//@prief fn : file name to write
 	//@prief nt : notes string
+	//@prief doi: doi string
 	//@param sgN: space group number [1,230]
 	//@param sgS: space group setting [1,2]
 	//@param nAt: number of atoms
@@ -1841,7 +1843,7 @@ namespace sht {
 	//@param iprm: integer parameters {# electrons, electron multiplier, numsx, npx, latgridtype}
 	//@param bw : bandwidth
 	//@param alm: actual harmonics (uncompressed format)
-	void File::EMsoftEBSD(char * fn, char const * nt, 
+	void File::EMsoftEBSD(char * fn, char const * nt, char const * doi,
 	                      int32_t sgN, int32_t sgS, int32_t nAt, int32_t * aTy, float * aCd, float * lat,
 	                      float * fprm, int32_t * iprm,
 	                      int32_t bw, double * alm) {
@@ -1855,8 +1857,8 @@ namespace sht {
 		f.header.modality   () = Modality::EBSD  ;
 		f.header.vendor     () = Vendor  ::EMsoft;
 		f.header.simDataSize() = (int16_t) f.simulMeta->size();
-		f.header.doiLen     () = 0;
-		f.header.setNotes(nt);
+		f.header.setNotes(nt );
+		f.header.setDoi  (doi);
 		f.header.beamEnergy    () = fprm[ 4];//keV
 		f.header.primaryAngle  () = fprm[ 0];//sigstart
 		f.header.secondaryAngle() = fprm[ 3];//omega
@@ -1867,12 +1869,12 @@ namespace sht {
 		if(!f.write(os)) throw std::runtime_error("failed to write data to file");
 	}
 
-	int File::EMsoftEBSDRet(char * fn, char const * nt, 
+	int File::EMsoftEBSDRet(char * fn, char const * nt, char const * doi,
 	                        int32_t sgN, int32_t sgS, int32_t nAt, int32_t * aTy, float * aCd, float * lat,
 	                        float * fprm, int32_t * iprm,
 	                        int32_t bw, double * alm) {
 		try {
-			EMsoftEBSD(fn, nt, sgN, sgS, nAt, aTy, aCd, lat, fprm, iprm, bw, alm);
+			EMsoftEBSD(fn, nt, doi, sgN, sgS, nAt, aTy, aCd, lat, fprm, iprm, bw, alm);
 			return 0;
 		} catch (std::exception& e) {
 			std::cerr << e.what() << '\n';

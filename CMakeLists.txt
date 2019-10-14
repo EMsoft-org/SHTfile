@@ -63,5 +63,5 @@ if(NOT 8 EQUAL ${STR_LEN})
 endif()
 
 # configure file using version string and include 
-configure_file(${SHTfile_SOURCE_DIR}/sht_file.hpp.in ${SHTfile_BINARY_DIR}/sht_file.hpp)
+configure_file(${SHTfile_SOURCE_DIR}/sht_file.in.hpp ${SHTfile_BINARY_DIR}/sht_file.hpp)
 

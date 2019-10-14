@@ -32,6 +32,15 @@
  *                                                                                 *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+/**
+ * This file is configured from the following template file:
+ * @CMAKE_CURRENT_SOURCE_DIR@/sht_file.hpp.in
+ * 
+ * To fix compile errors in this file you need to edit the original file and NOT
+ * this file.
+ */
+
+
 #ifndef _SHT_FILE_H_
 #define _SHT_FILE_H_
 

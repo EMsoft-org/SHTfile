@@ -59,10 +59,9 @@ endif()
 string(CONCAT SHT_FILE_VERS "v" ${SHT_GIT_HASH}) # hash is only 7 characters, make 8 by prepending with v
 string(LENGTH ${SHT_FILE_VERS} STR_LEN)
 if(NOT 8 EQUAL ${STR_LEN})
-	message(FATAL_ERROR "version string must be 8 characters long")
+	message(FATAL_ERROR "Git Hash must be 8 characters long. Computed was: ${SHT_FILE_VERS}")
 endif()
 
 # configure file using version string and include 
 configure_file(${SHTfile_SOURCE_DIR}/sht_file.hpp.in ${SHTfile_BINARY_DIR}/sht_file.hpp)
-include_directories(${CMAKE_CURRENT_BINARY_DIR}) # output of configure_file is relative to this
 

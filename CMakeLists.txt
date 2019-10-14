@@ -63,6 +63,6 @@ if(NOT 8 EQUAL ${STR_LEN})
 endif()
 
 # configure file using version string and include 
-configure_file(sht_file.hpp.in sht_file.hpp)
+configure_file(${EMSphInx_SOURCE_DIR}/sht_file.hpp.in ${EMSphInx_BINARY_DIR}/sht_file.hpp)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}) # output of configure_file is relative to this
 

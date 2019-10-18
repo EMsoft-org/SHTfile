@@ -1065,7 +1065,7 @@ namespace sht {
 	//@param str: new DOI string
 	void FileHeader::setDoi(std::string str) {
 		doi = str;
-		if(str.size() > std::numeric_limits<int16_t>::max()) throw std::runtime_error("string too long for 16 bit length");
+		if(str.size() > (size_t)std::numeric_limits<int16_t>::max()) throw std::runtime_error("string too long for 16 bit length");
 		doiLen() = (int16_t)str.size();
 		size_t pad = str.size() % 8;
 		if(pad != 0) doi.resize(str.size() + 8 - pad, 0);
@@ -1075,7 +1075,7 @@ namespace sht {
 	//@param str: new notes string
 	void FileHeader::setNotes(std::string str) {
 		notes = str;
-		if(str.size() > std::numeric_limits<int16_t>::max()) throw std::runtime_error("string too long for 16 bit length");
+		if(str.size() > (size_t)std::numeric_limits<int16_t>::max()) throw std::runtime_error("string too long for 16 bit length");
 		noteLen() = (int16_t)str.size();
 		size_t pad = str.size() % 8;
 		if(pad != 0) notes.resize(str.size() + 8 - pad, 0);

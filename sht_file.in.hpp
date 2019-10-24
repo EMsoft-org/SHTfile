@@ -54,6 +54,9 @@ namespace sht {
 
 	static const char VersionString[9] = "@SHT_FILE_VERS@";
 
+	static const int8_t VERSION_MAJOR = 1;
+	static const int8_t VERSION_MINOR = 1;
+
 	//@brief: all user defined types need methods to hash, sanity check, and read/write from a file
 	struct CompoundData : std::vector<char> {
 
@@ -123,6 +126,12 @@ namespace sht {
 		//@brief : get the vendor this data type is associated with
 		//@return: vendor
 		virtual Vendor getVendor() const = 0;
+
+		//@brief    : factory method to build known vendor specific simulation meta data types
+		//@param mod: modality
+		//@param ven: vendor
+		//@return   : unique pointer allocated with vendor specific type (or NULL if known suitable type is known)
+		static std::unique_ptr<SimulationData> Factory(const Modality mod, const Vendor ven);
 	};
 
 	//@file and target experiment info
@@ -155,54 +164,49 @@ namespace sht {
 		char const * softwareVersion() const {return CompoundData::nthByteAs<char const*>(8);}
 		char       * softwareVersion()       {return CompoundData::nthByteAs<char      *>(8);}
 
-		//Metadata
+		// Experimental Conditions Spherical Function was Simulated for (modality dependent)
 
 		//@brief : access diffraction modality
-		//@return: modality type
+		//@return: modality type this file is intended for
 		const Modality& modality() const {return CompoundData::nthByteAs<Modality>(16);}
 		      Modality& modality()       {return CompoundData::nthByteAs<Modality>(16);}
 
-		//@brief : access diffraction vendor
-		//@return: vendor type
-		const Vendor& vendor() const {return CompoundData::nthByteAs<Vendor>(17);}
-		      Vendor& vendor()       {return CompoundData::nthByteAs<Vendor>(17);}
-
-		//@brief : access simulation data size
-		//@return: simulation data size in bytes
-		const int16_t& simDataSize() const {return CompoundData::nthByteAs<int16_t>(18);}
-		      int16_t& simDataSize()       {return CompoundData::nthByteAs<int16_t>(18);}
-
-		//@brief : access doi string length
-		//@return: doi string length in bytes
-		const int16_t& doiLen() const {return CompoundData::nthByteAs<int16_t>(20);}
-		      int16_t& doiLen()       {return CompoundData::nthByteAs<int16_t>(20);}
-
-		//@brief : access note string length
-		//@return: note string length in bytes
-		const int16_t& noteLen() const {return CompoundData::nthByteAs<int16_t>(22);}
-		      int16_t& noteLen()       {return CompoundData::nthByteAs<int16_t>(22);}
-
-		// Experimental Conditions Spherical Function was Simulated for (modality dependent)
-
+		//@brief : access reserved bytes
+		//@return: pointer to start of reserved bytes (3x int8_t)
+		int8_t const * resBytes2() const {return CompoundData::nthByteAs<int8_t const*>(17);}
+		int8_t       * resBytes2()       {return CompoundData::nthByteAs<int8_t      *>(17);}
+		      
 		//@brief : access beam energy
 		//@return: beam energy in keV
-		const float& beamEnergy() const {return CompoundData::nthByteAs<float>(24);}
-		      float& beamEnergy()       {return CompoundData::nthByteAs<float>(24);}
+		const float& beamEnergy() const {return CompoundData::nthByteAs<float>(20);}
+		      float& beamEnergy()       {return CompoundData::nthByteAs<float>(20);}
 
 		//@brief : access primary angle
 		//@return: primary angle in degrees
-		const float& primaryAngle() const {return CompoundData::nthByteAs<float>(28);}
-		      float& primaryAngle()       {return CompoundData::nthByteAs<float>(28);}
+		const float& primaryAngle() const {return CompoundData::nthByteAs<float>(24);}
+		      float& primaryAngle()       {return CompoundData::nthByteAs<float>(24);}
 
 		//@brief : access secondary angle
 		//@return: secondary angle in degrees
-		const float& secondaryAngle() const {return CompoundData::nthByteAs<float>(32);}
-		      float& secondaryAngle()       {return CompoundData::nthByteAs<float>(32);}
+		const float& secondaryAngle() const {return CompoundData::nthByteAs<float>(28);}
+		      float& secondaryAngle()       {return CompoundData::nthByteAs<float>(28);}
 
 		//@brief : access reserved experimenatal paramter
 		//@return: reserved experimenatal paramter
-		const float& reservedParam() const {return CompoundData::nthByteAs<float>(36);}
-		      float& reservedParam()       {return CompoundData::nthByteAs<float>(36);}
+		const float& reservedParam() const {return CompoundData::nthByteAs<float>(32);}
+		      float& reservedParam()       {return CompoundData::nthByteAs<float>(32);}
+
+		//Metadata
+
+		//@brief : access doi string length
+		//@return: doi string length in bytes
+		const int16_t& doiLen() const {return CompoundData::nthByteAs<int16_t>(36);}
+		      int16_t& doiLen()       {return CompoundData::nthByteAs<int16_t>(36);}
+
+		//@brief : access note string length
+		//@return: note string length in bytes
+		const int16_t& noteLen() const {return CompoundData::nthByteAs<int16_t>(38);}
+		      int16_t& noteLen()       {return CompoundData::nthByteAs<int16_t>(38);}
 
 		//@brief: sanity check the contents of this data block (throw if not)
 		void sanityCheck() const;
@@ -332,9 +336,14 @@ namespace sht {
 		};
 
 		std::vector<AtomData> atoms;//actual atoms
+		std::string           form ;//formula
+		std::string           name ;//phase/material name
+		std::string           symb ;//structure symbol
+		std::string           refs ;//reference(s), doi(s) preferred, bibtex key as fallback
+		std::string           note ;//additional notes
 
 		//@brief: constructor sets size
-		CrystalData() : CompoundData(64) {}
+		CrystalData() : CompoundData(72) {}
 
 		//@brief: default destructor (required to silence warnings virtual function warnings)
 		virtual ~CrystalData() = default;
@@ -394,10 +403,30 @@ namespace sht {
 		const int16_t& numAtoms() const {return CompoundData::nthByteAs<int16_t>(60);}
 		      int16_t& numAtoms()       {return CompoundData::nthByteAs<int16_t>(60);}
 
-		//@brief : access reserved bytes
-		//@return: pointer to start of reserved bytes (2x int8_t)
-		int8_t const * resBytes() const {return CompoundData::nthByteAs<int8_t const*>(62);}
-		int8_t       * resBytes()       {return CompoundData::nthByteAs<int8_t      *>(62);}
+		//@brief : access formula string length
+		//@return: formula string length in bytes
+		const int16_t& formulaLen() const {return CompoundData::nthByteAs<int16_t>(62);}
+		      int16_t& formulaLen()       {return CompoundData::nthByteAs<int16_t>(62);}
+
+		//@brief : access maerial/phase name string length
+		//@return: maerial/phase name string length in bytes
+		const int16_t& matNameLen() const {return CompoundData::nthByteAs<int16_t>(64);}
+		      int16_t& matNameLen()       {return CompoundData::nthByteAs<int16_t>(64);}
+
+		//@brief : access structure symbol string length
+		//@return: structure symbol string length in bytes
+		const int16_t& structSymLen() const {return CompoundData::nthByteAs<int16_t>(66);}
+		      int16_t& structSymLen()       {return CompoundData::nthByteAs<int16_t>(66);}
+
+		//@brief : access structure symbol string length
+		//@return: structure symbol string length in bytes
+		const int16_t& refsLen() const {return CompoundData::nthByteAs<int16_t>(68);}
+		      int16_t& refsLen()       {return CompoundData::nthByteAs<int16_t>(68);}
+		      
+		//@brief : access structure symbol string length
+		//@return: structure symbol string length in bytes
+		const int16_t& noteLen() const {return CompoundData::nthByteAs<int16_t>(70);}
+		      int16_t& noteLen()       {return CompoundData::nthByteAs<int16_t>(70);}
 
 		//@brief: sanity check the contents of this data block (throw if not)
 		void sanityCheck() const;
@@ -420,15 +449,36 @@ namespace sht {
 
 		//@brief: byte swap data
 		void byteSwap();
+
+		//@brief    : set the formula string
+		//@param str: new formula string
+		void setFormula(std::string str);
+
+		//@brief    : set the material/phase name string
+		//@param str: new material/phase name string
+		void setName(std::string str);
+
+		//@brief    : set the structure symbol string
+		//@param str: new structure symbol string
+		void setStructSym(std::string str);
+
+		//@brief    : set the references string
+		//@param str: new references string
+		void setRefs(std::string str);
+		
+		//@brief    : set the note string
+		//@param str: new note string
+		void setNote(std::string str);
 	};
 
 	//@brief: crystal structure definition
-	struct MaterialData : public CompoundData {
+	struct MasterPatternData : public CompoundData {
 	
-		std::vector<CrystalData> xtals;//actual crystals
+		std::vector< CrystalData                     > xtals;//actual crystal definitions
+		std::vector< std::unique_ptr<SimulationData> > simul;//simulation meta data
 
 		//@brief: constructor sets size
-		MaterialData() : CompoundData(8) {}
+		MasterPatternData() : CompoundData(8) {}
 
 		//@brief : access number of crystals averaged
 		//@return: number of crystals averaged
@@ -450,10 +500,20 @@ namespace sht {
 		const int8_t& rotSense() const {return CompoundData::nthByteAs<int8_t>(3);}
 		      int8_t& rotSense()       {return CompoundData::nthByteAs<int8_t>(3);}
 
-		//@brief : access reserved bytes
-		//@return: pointer to start of reserved bytes (4x int8_t)
-		int8_t const * resBytes() const {return CompoundData::nthByteAs<int8_t const*>(4);}
-		int8_t       * resBytes()       {return CompoundData::nthByteAs<int8_t      *>(4);}
+		//@brief : access simulated modality
+		//@return: modality type
+		const Modality& modality() const {return CompoundData::nthByteAs<Modality>(4);}
+		      Modality& modality()       {return CompoundData::nthByteAs<Modality>(4);}
+
+		//@brief : access simulation vendor
+		//@return: vendor type
+		const Vendor& vendor() const {return CompoundData::nthByteAs<Vendor>(5);}
+		      Vendor& vendor()       {return CompoundData::nthByteAs<Vendor>(5);}
+
+		//@brief : access size of simulation meta data
+		//@return: size of simulation meta data (single entry, total size is simMetaSize() * numXtal
+		const int16_t& simMetaSize() const {return CompoundData::nthByteAs<int16_t>(6);}
+		      int16_t& simMetaSize()       {return CompoundData::nthByteAs<int16_t>(6);}
 
 		//@brief: sanity check the contents of this data block (throw if not)
 		void sanityCheck() const;
@@ -475,7 +535,7 @@ namespace sht {
 		std::istream& read(std::istream& is, const bool swp);
 
 		//@brief: byte swap data
-		void byteSwap() {for(CrystalData& x : xtals) x.byteSwap();}
+		void byteSwap();
 	};
 
 	//@brief: actual spherical harmonics storage
@@ -579,8 +639,7 @@ namespace sht {
 	//@brief: harmonics master pattern binary file v1.0
 	struct File {
 		FileHeader                      header   ;
-		MaterialData                    material ;
-		std::unique_ptr<SimulationData> simulMeta;//can be null if header.simDataSize() == 0
+		MasterPatternData               mpData   ;
 		HarmonicsData                   harmonics;
 		uint32_t                        crcHash  ;
 
@@ -589,9 +648,8 @@ namespace sht {
 
 		//@brief    : compute the CRC-32C hash of this data block
 		//@param crc: initial hash value
-		//@param sim: simulation data types if unknown (or NULL if size was zero)
 		//@return   : new hash value
-		uint32_t computeHash(uint32_t crc, std::vector<char> const * sim) const;
+		uint32_t computeHash(uint32_t crc) const;
 
 		//@brief   : write data to an ostream
 		//@param os: ostream to write to
@@ -603,6 +661,74 @@ namespace sht {
 		//@return  : is
 		std::istream& read (std::istream& is);
 
+		//@brief     : create an file without any master pattern data from EMsoft style data
+		//@param iprm: integer parameters {sgn, mod, bw}
+		//             sgn - effective space group number of spherical function
+		//             mod - modality (see enumeration, EBSD == 1)
+		//             bw  - bandwidth
+		//@param fprm: float {keV, sig, tht, res} e.g. {20.0, 70.0, 0.0, 0.0} for typical EBSD
+		//             keV - beam energy in keV
+		//             sig - primary tilt angle
+		//             tht - secondary tilt angle
+		//             res - reserved parameter
+		//@param doi : file DOI string (null terminated)
+		//@param note: file level notes (null terminated)
+		//@param alm : actual harmonics (uncompressed format)
+		//@return    : error code (void return function throws instead)
+		void initFileEMsoft   (int32_t const * iprm, float const * fprm, char const * doi, char const * note, double const * alm);
+		int  initFileEMsoftRet(int32_t const * iprm, float const * fprm, char const * doi, char const * note, double const * alm);
+
+		//@brief     : add master pattern data to a file
+		//@param iprm: integer paramters {sgn, sgs, nat, nel, elm, nsx, npx, grd}
+		//       crystal data
+		//             sgn - space group number
+		//             sgs - space group setting
+		//             nat - number of atoms
+		//       simulation data
+		//             nel - number of electrons
+		//             elm - electron multiplier
+		//             nsx - numsx (monte carlo grid size)
+		//             npx - npx (master pattern grid size)
+		//             grd - lattitude grid type
+		//@param fprm: floating point parameters {a, b, c, alp, bet, gam, sgs, sge, sst, omg, kev, emn, esz, dmx, dmn, thk, c1, c2, c3, ddd, dmi}
+		//       crystal data
+		//             a   - lattice constant a in nm
+		//             b   - lattice constant b in nm
+		//             c   - lattice constant c in nm
+		//             alp - lattice constant alpha in degrees
+		//             bet - lattice constant beta  in degrees
+		//             gam - lattice constant gamma in degrees
+		//       simulation data
+		//             sgs - sigma start
+		//             sge - sigma end
+		//             sst - sigma step
+		//             omg - omega
+		//             kev - keV
+		//             emn - eHistMin
+		//             esz - eBinSize
+		//             dmx - depthMax
+		//             dmn - depthMin
+		//             thk - thickness
+		//             c1  - c1
+		//             c2  - c2
+		//             c3  - c3
+		//             ddd - sigDbDiff
+		//             dmi - dMin
+		//@param aTy : atom types (nAt atomic numbers)
+		//@param aCd : atom coordinates (nAt * 5 floats {x, y, z, occupancy, Debye-Waller in nm^2})
+		//@param vers: EMsoft version string (8 characters, null termination not required)
+		//@param cprm: string parameters as one concatenated sequence will null seperators (+ final null terminator)
+		//             {frm, nam, syb, ref}
+		//             frm - formula string (null terimated)
+		//             nam - material phase/name string (null terminated)
+		//             syb - structure symbol string (null terminated)
+		//             ref - reference string (null terminated)
+		//             nte - note string (null terminated)
+		//@return    : error code (void return function throws instead)
+		void addDataEMsoft   (int32_t * iprm, float * fprm, int32_t * aTy, float * aCd, char const * vers, char const * cprm);
+		int  addDataEMsoftRet(int32_t * iprm, float * fprm, int32_t * aTy, float * aCd, char const * vers, char const * cprm);
+
+/*
 		//@brief    : build up materials data from EMsoft style data
 		//@param sgN: space group number [1,230]
 		//@param sgS: space group setting [1,2]
@@ -610,12 +736,18 @@ namespace sht {
 		//@param aTy: atom types (nAt atomic numbers)
 		//@param aCd: atom coordinates, (nAt * 5 floats {x, y, z, occupancy, Debye-Waller in nm^2})
 		//@param lat: lattice parameters {a, b, a, alpha, beta, gamma} (in nm / degree)
-		void setEMDataMat(int32_t sgN, int32_t sgS, int32_t nAt, int32_t * aTy, float * aCd, float * lat);
+		//@param frm: formula string
+		//@param nam: material/phase name
+		//@param syb: structure symbol
+		//@param ref: structure source (prefer doi string, fallback to bibtex)
+		//@param nt : material notes
+		void setEMDataMat(int32_t sgN, int32_t sgS, int32_t nAt, int32_t * aTy, float * aCd, float * lat, char const * frm, char const * nam, char const * syb, char const * ref, char const * nt);
 
 		//@brief     : build up ebsd simulation data from EMsoft style data
+		//@param vers: EMsoft version string (8 characters)
 		//@param fprm: floating point parameters (float32 EMsoftED parameters in order)
 		//@param iprm: integer parameters {# electrons, electron multiplier, numsx, npx, latgridtype}
-		void setEMDataSim(float * fprm, int32_t * iprm);
+		void setEMDataSim(char const * vers, float * fprm, int32_t * iprm);
 
 		//@brief    : build up harmonics from EMsoft style data
 		//@param bw : bandwidth
@@ -649,6 +781,7 @@ namespace sht {
 		                         int32_t sgN, int32_t sgS, int32_t nAt, int32_t * aTy, float * aCd, float * lat,
 		                         float * fprm, int32_t * iprm,
 		                         int32_t bw, double * alm);
+		*/
 	};
 
 }
@@ -663,91 +796,96 @@ namespace sht {
 	struct EMsoftED : public SimulationData {
 
 		//@brief: constructor sets size
-		EMsoftED() : SimulationData(80) {}
+		EMsoftED() : SimulationData(88) {}
+
+		//@brief : access emsoft version
+		//@return: pointer to start of emsoft version (8x char)
+		char const * emsoftVersion() const {return CompoundData::nthByteAs<char const*>(0);}
+		char       * emsoftVersion()       {return CompoundData::nthByteAs<char      *>(0);}
 
 		//@return: start angle in degrees (or sig for full mode)
-		const float& sigStart() const {return CompoundData::nthByteAs<float>(0);}
-		      float& sigStart()       {return CompoundData::nthByteAs<float>(0);}
+		const float& sigStart() const {return CompoundData::nthByteAs<float>(8);}
+		      float& sigStart()       {return CompoundData::nthByteAs<float>(8);}
 
 		//@return: end angle in degrees (or NAN for full mode)
-		const float& sigEnd() const {return CompoundData::nthByteAs<float>(4);}
-		      float& sigEnd()       {return CompoundData::nthByteAs<float>(4);}
+		const float& sigEnd() const {return CompoundData::nthByteAs<float>(12);}
+		      float& sigEnd()       {return CompoundData::nthByteAs<float>(12);}
 
 		//@return: angle step size in degrees (or NAN for full mode)
-		const float& sigStep() const {return CompoundData::nthByteAs<float>(8);}
-		      float& sigStep()       {return CompoundData::nthByteAs<float>(8);}
+		const float& sigStep() const {return CompoundData::nthByteAs<float>(16);}
+		      float& sigStep()       {return CompoundData::nthByteAs<float>(16);}
 
 		//@return: secondary tilt angle in degrees
-		const float& omega() const {return CompoundData::nthByteAs<float>(12);}
-		      float& omega()       {return CompoundData::nthByteAs<float>(12);}
+		const float& omega() const {return CompoundData::nthByteAs<float>(20);}
+		      float& omega()       {return CompoundData::nthByteAs<float>(20);}
 
 		//@return: incident beam energy in keV
-		const float& keV() const {return CompoundData::nthByteAs<float>(16);}
-		      float& keV()       {return CompoundData::nthByteAs<float>(16);}
+		const float& keV() const {return CompoundData::nthByteAs<float>(24);}
+		      float& keV()       {return CompoundData::nthByteAs<float>(24);}
 
 		//@return: minimum energy to consider in keV 
-		const float& eHistMin() const {return CompoundData::nthByteAs<float>(20);}
-		      float& eHistMin()       {return CompoundData::nthByteAs<float>(20);}
+		const float& eHistMin() const {return CompoundData::nthByteAs<float>(28);}
+		      float& eHistMin()       {return CompoundData::nthByteAs<float>(28);}
 
 		//@return: energy bin size in keV
-		const float& eBinSize() const {return CompoundData::nthByteAs<float>(24);}
-		      float& eBinSize()       {return CompoundData::nthByteAs<float>(24);}
+		const float& eBinSize() const {return CompoundData::nthByteAs<float>(32);}
+		      float& eBinSize()       {return CompoundData::nthByteAs<float>(32);}
 
 		//@return: maximum depth to consider for statistics in nm
-		const float& depthMax() const {return CompoundData::nthByteAs<float>(28);}
-		      float& depthMax()       {return CompoundData::nthByteAs<float>(28);}
+		const float& depthMax() const {return CompoundData::nthByteAs<float>(36);}
+		      float& depthMax()       {return CompoundData::nthByteAs<float>(36);}
 
 		//@return: depth step size in nm
-		const float& depthStep() const {return CompoundData::nthByteAs<float>(32);}
-		      float& depthStep()       {return CompoundData::nthByteAs<float>(32);}
+		const float& depthStep() const {return CompoundData::nthByteAs<float>(40);}
+		      float& depthStep()       {return CompoundData::nthByteAs<float>(40);}
 
 		//@return: foil thickness in nm (INF for non-foil)
-		const float& thickness() const {return CompoundData::nthByteAs<float>(36);}
-		      float& thickness()       {return CompoundData::nthByteAs<float>(36);}
+		const float& thickness() const {return CompoundData::nthByteAs<float>(44);}
+		      float& thickness()       {return CompoundData::nthByteAs<float>(44);}
 
 		//@return: number of electrons
-		const int64_t& totNumEl() const {return CompoundData::nthByteAs<int64_t>(40);}
-		      int64_t& totNumEl()       {return CompoundData::nthByteAs<int64_t>(40);}
+		const int64_t& totNumEl() const {return CompoundData::nthByteAs<int64_t>(48);}
+		      int64_t& totNumEl()       {return CompoundData::nthByteAs<int64_t>(48);}
 
 		//@return: monte carlo grid size in pixels
-		const int16_t& numSx() const {return CompoundData::nthByteAs<int16_t>(48);}
-		      int16_t& numSx()       {return CompoundData::nthByteAs<int16_t>(48);}
+		const int16_t& numSx() const {return CompoundData::nthByteAs<int16_t>(56);}
+		      int16_t& numSx()       {return CompoundData::nthByteAs<int16_t>(56);}
 
 		//@return: pointer to start of reserved bytes (2x int8_t)
-		int8_t const * resBytes1() const {return CompoundData::nthByteAs<int8_t const*>(50);}
-		int8_t       * resBytes1()       {return CompoundData::nthByteAs<int8_t      *>(50);}
+		int8_t const * resBytes1() const {return CompoundData::nthByteAs<int8_t const*>(58);}
+		int8_t       * resBytes1()       {return CompoundData::nthByteAs<int8_t      *>(58);}
 
 		//@return: strong beam cutoff
-		const float& c1() const {return CompoundData::nthByteAs<float>(52);}
-		      float& c1()       {return CompoundData::nthByteAs<float>(52);}
+		const float& c1() const {return CompoundData::nthByteAs<float>(60);}
+		      float& c1()       {return CompoundData::nthByteAs<float>(60);}
 
 		//@return: weak beam cutoff
-		const float& c2() const {return CompoundData::nthByteAs<float>(56);}
-		      float& c2()       {return CompoundData::nthByteAs<float>(56);}
+		const float& c2() const {return CompoundData::nthByteAs<float>(64);}
+		      float& c2()       {return CompoundData::nthByteAs<float>(64);}
 
 		//@return: complete cutoff
-		const float& c3() const {return CompoundData::nthByteAs<float>(60);}
-		      float& c3()       {return CompoundData::nthByteAs<float>(60);}
+		const float& c3() const {return CompoundData::nthByteAs<float>(68);}
+		      float& c3()       {return CompoundData::nthByteAs<float>(68);}
 
 		//@return: double diffraction max excitation error in nm^-1
-		const float& sigDbDiff() const {return CompoundData::nthByteAs<float>(64);}
-		      float& sigDbDiff()       {return CompoundData::nthByteAs<float>(64);}
+		const float& sigDbDiff() const {return CompoundData::nthByteAs<float>(72);}
+		      float& sigDbDiff()       {return CompoundData::nthByteAs<float>(72);}
 
 		//@return: minimum d spacing to consider in nm
-		const float& dMin() const {return CompoundData::nthByteAs<float>(68);}
-		      float& dMin()       {return CompoundData::nthByteAs<float>(68);}
+		const float& dMin() const {return CompoundData::nthByteAs<float>(76);}
+		      float& dMin()       {return CompoundData::nthByteAs<float>(76);}
 
 		//@return: EBSD grid half size in pixels
-		const int16_t& numPx() const {return CompoundData::nthByteAs<int16_t>(72);}
-		      int16_t& numPx()       {return CompoundData::nthByteAs<int16_t>(72);}
+		const int16_t& numPx() const {return CompoundData::nthByteAs<int16_t>(80);}
+		      int16_t& numPx()       {return CompoundData::nthByteAs<int16_t>(80);}
 
 		//@return: grid flag (1/2 for square lambert/legendre)
-		const int8_t& latGridType() const {return CompoundData::nthByteAs<int8_t>(74);}
-		      int8_t& latGridType()       {return CompoundData::nthByteAs<int8_t>(74);}
+		const int8_t& latGridType() const {return CompoundData::nthByteAs<int8_t>(82);}
+		      int8_t& latGridType()       {return CompoundData::nthByteAs<int8_t>(82);}
 
 		//@return: pointer to start of reserved bytes (5x int8_t)
-		int8_t const * resBytes2() const {return CompoundData::nthByteAs<int8_t const*>(75);}
-		int8_t       * resBytes2()       {return CompoundData::nthByteAs<int8_t      *>(75);}
+		int8_t const * resBytes2() const {return CompoundData::nthByteAs<int8_t const*>(83);}
+		int8_t       * resBytes2()       {return CompoundData::nthByteAs<int8_t      *>(83);}
 
 		//@brief  : check if this datatype supports a given modality
 		//@param m: modality to check support for
@@ -769,36 +907,40 @@ namespace sht {
 	struct EMsoftXD : public SimulationData {
 
 		//@brief: constructor sets size
-		EMsoftXD() : SimulationData(24) {}
+		EMsoftXD() : SimulationData(32) {}
 
+		//@brief : access emsoft version
+		//@return: pointer to start of emsoft version (8x char)
+		char const * emsoftVersion() const {return CompoundData::nthByteAs<char const*>(0);}
+		char       * emsoftVersion()       {return CompoundData::nthByteAs<char      *>(0);}
 
 		//@return: minimum wave length in nm
-		const float& lambdaMin() const {return CompoundData::nthByteAs<float>(0);}
-		      float& lambdaMin()       {return CompoundData::nthByteAs<float>(0);}
+		const float& lambdaMin() const {return CompoundData::nthByteAs<float>(8);}
+		      float& lambdaMin()       {return CompoundData::nthByteAs<float>(8);}
 
 		//@return: maximnum wave length in nm
-		const float& lambdaMax() const {return CompoundData::nthByteAs<float>(4);}
-		      float& lambdaMax()       {return CompoundData::nthByteAs<float>(4);}
+		const float& lambdaMax() const {return CompoundData::nthByteAs<float>(12);}
+		      float& lambdaMax()       {return CompoundData::nthByteAs<float>(12);}
 
 		//@return: von Mises-Fisher distribution concentration
-		const float& kappaVMF() const {return CompoundData::nthByteAs<float>(8);}
-		      float& kappaVMF()       {return CompoundData::nthByteAs<float>(8);}
+		const float& kappaVMF() const {return CompoundData::nthByteAs<float>(16);}
+		      float& kappaVMF()       {return CompoundData::nthByteAs<float>(16);}
 
 		//@return: intensity truncation factor
-		const float& intFactor() const {return CompoundData::nthByteAs<float>(12);}
-		      float& intFactor()       {return CompoundData::nthByteAs<float>(12);}
+		const float& intFactor() const {return CompoundData::nthByteAs<float>(20);}
+		      float& intFactor()       {return CompoundData::nthByteAs<float>(20);}
 
 		//@return: grid half size in pixels
-		const int16_t& numPx() const {return CompoundData::nthByteAs<int16_t>(16);}
-		      int16_t& numPx()       {return CompoundData::nthByteAs<int16_t>(16);}
+		const int16_t& numPx() const {return CompoundData::nthByteAs<int16_t>(24);}
+		      int16_t& numPx()       {return CompoundData::nthByteAs<int16_t>(24);}
 
 		//@return: sampling patch size
-		const int8_t& patchW() const {return CompoundData::nthByteAs<int8_t>(18);}
-		      int8_t& patchW()       {return CompoundData::nthByteAs<int8_t>(18);}
+		const int8_t& patchW() const {return CompoundData::nthByteAs<int8_t>(26);}
+		      int8_t& patchW()       {return CompoundData::nthByteAs<int8_t>(26);}
 
 		//@return: pointer to start of reserved bytes (5x int8_t)
-		int8_t const * resBytes() const {return CompoundData::nthByteAs<int8_t const*>(19);}
-		int8_t       * resBytes()       {return CompoundData::nthByteAs<int8_t      *>(19);}
+		int8_t const * resBytes() const {return CompoundData::nthByteAs<int8_t const*>(27);}
+		int8_t       * resBytes()       {return CompoundData::nthByteAs<int8_t      *>(27);}
 
 		//@brief  : check if this datatype supports a given modality
 		//@param m: modality to check support for
@@ -924,6 +1066,40 @@ namespace sht {
 	//@return   : new hash value
 	uint32_t CompoundData::computeHash(uint32_t crc) const {return detail::crc32c(std::vector<char>::data(), std::vector<char>::size(), crc);}
 
+
+	////////////////////////////////////////////////////////////////////////////////
+	//                               SimulationData                               //
+	////////////////////////////////////////////////////////////////////////////////
+
+	//@brief    : factory method to build known vendor specific simulation meta data types
+	//@param mod: modality
+	//@param ven: vendor
+	//@return   : unique pointer allocated with vendor specific type (or NULL)
+	std::unique_ptr<SimulationData> SimulationData::Factory(const Modality mod, const Vendor ven) {
+		std::unique_ptr<SimulationData> ptr;//null pointer
+		switch(ven) {
+			case Vendor::Unknown:
+			default             : break;
+
+			case Vendor::EMsoft :
+				switch(mod) {
+					case Modality::EBSD   ://intentional fall through
+					case Modality::ECP    ://intentional fall through
+					case Modality::TKD    : ptr = std::unique_ptr<EMsoftED>(new EMsoftED); break;
+
+					case Modality::Unknown://intentional fall through
+					case Modality::PED    ://intentional fall through
+					case Modality::Laue   ://intentional fall through
+					default               : break;
+				}
+			break;
+		}
+		if(NULL != ptr.get()) {//a pointer was actually assigned, sanity check
+			if(!ptr->forModality(mod) || ptr->getVendor() != ven) throw std::logic_error("simulation data fetched for modality/vendor doesn't match");
+		}
+		return ptr;
+	}
+
 	////////////////////////////////////////////////////////////////////////////////
 	//                                 FileHeader                                 //
 	////////////////////////////////////////////////////////////////////////////////
@@ -936,7 +1112,7 @@ namespace sht {
 		} else {
 			p[0] = '*'; p[1] = 's'; p[2] = 'h'; p[3] = 't';
 		}
-		fileVersion()[0] = 1; fileVersion()[1] = 0;
+		fileVersion()[0] = VERSION_MAJOR; fileVersion()[1] = VERSION_MINOR;
 		p = softwareVersion();
 		std::copy(VersionString, VersionString + 8, p);
 	}
@@ -944,7 +1120,7 @@ namespace sht {
 	//@brief: sanity check the contents of this data block (throw if not)
 	void FileHeader::sanityCheck() const {
 		//check file version and reserved bytes
-		if(1 != fileVersion()[0] || 0 != fileVersion()[1]) throw std::runtime_error("unsupported file version");
+		if(VERSION_MAJOR != fileVersion()[0] || VERSION_MINOR != fileVersion()[1]) throw std::runtime_error("unsupported file version");
 		if(0 != resBytes()[0] || 0 != resBytes()[1]) throw std::runtime_error("non-zero reserved bytes");
 
 		switch(modality()) {
@@ -956,11 +1132,7 @@ namespace sht {
 			case Modality::Laue   : break;
 			default: throw std::runtime_error("invalid modality flag");       
 		}
-		switch(vendor()) {
-			case Vendor::Unknown: break;
-			case Vendor::EMsoft : break;
-			default: throw std::runtime_error("invalid vendor flag");       
-		}
+		for(size_t i = 0; i < 3; i++) if(0 != resBytes2()[i]) throw std::runtime_error("reserved bytes must be 0");
 
 		//check string lengths
 		int16_t dSz = doiLen ();
@@ -971,7 +1143,7 @@ namespace sht {
 		if(notes.size() != nSz) throw std::runtime_error("noites string doesn't match length");
 
 		//check physical parameters
-		if(beamEnergy() < 0      ) throw std::runtime_error("negative beam energy is non-physical");
+		if(beamEnergy() <     0.0f) throw std::runtime_error("negative beam energy is non-physical");
 		if(beamEnergy() > 10000.0f) throw std::runtime_error("10 MeV beam energy is unrealistic");
 		if(primaryAngle() < -360.0f || primaryAngle() > 360.0f) throw std::runtime_error("primary angle outside [-360,360]");
 		if(secondaryAngle() < -360.0f || secondaryAngle() > 360.0f) throw std::runtime_error("secondary angle outside [-360,360]");
@@ -1033,7 +1205,6 @@ namespace sht {
 
 	//@brief: byte swap data
 	void FileHeader::byteSwap() {
-		simDataSize   () = detail::byteSwap(simDataSize   ());
 		doiLen        () = detail::byteSwap(doiLen        ());
 		noteLen       () = detail::byteSwap(noteLen       ());
 		beamEnergy    () = detail::byteSwap(beamEnergy    ());
@@ -1210,7 +1381,26 @@ namespace sht {
 
 		//sanity check atom length
 		if(numAtoms() != atoms.size()) throw std::runtime_error("# atoms doesn't match atom size");
-		if(0 != resBytes()[0] || 0 != resBytes()[1]) throw std::runtime_error("reserved bytes must be 0");
+
+		//sanity check string lengths
+		int16_t fSz = formulaLen  ();
+		int16_t mSz = matNameLen  ();
+		int16_t sSz = structSymLen();
+		int16_t rSz = refsLen     ();
+		int16_t nSz = noteLen     ();
+
+		if(0 != fSz % 8) fSz += 8 - (fSz % 8);
+		if(0 != mSz % 8) mSz += 8 - (mSz % 8);
+		if(0 != sSz % 8) sSz += 8 - (sSz % 8);
+		if(0 != rSz % 8) rSz += 8 - (rSz % 8);
+		if(0 != nSz % 8) nSz += 8 - (nSz % 8);
+
+		//check string lengths
+		if(form.size() != fSz) throw std::runtime_error("formula string doesn't match length");
+		if(name.size() != mSz) throw std::runtime_error("maerial/phase name string doesn't match length");
+		if(symb.size() != sSz) throw std::runtime_error("structure symbol string doesn't match length");
+		if(refs.size() != rSz) throw std::runtime_error("reference string doesn't match length");
+		if(note.size() != nSz) throw std::runtime_error("note string doesn't match length");
 
 		//sanity check individual atoms
 		for(const AtomData& ad : atoms) ad.sanityCheck();
@@ -1222,6 +1412,11 @@ namespace sht {
 	uint32_t CrystalData::computeHash(uint32_t crc) const {
 		crc = CompoundData::computeHash(crc);//start by hashing fixed length part
 		for(const AtomData& ad : atoms) crc = ad.computeHash(crc);
+		if(!form.empty()) crc = detail::crc32c(form.data(), form.size(), crc);
+		if(!name.empty()) crc = detail::crc32c(name.data(), name.size(), crc);
+		if(!symb.empty()) crc = detail::crc32c(symb.data(), symb.size(), crc);
+		if(!refs.empty()) crc = detail::crc32c(refs.data(), refs.size(), crc);
+		if(!note.empty()) crc = detail::crc32c(note.data(), note.size(), crc);
 		return crc;
 	}
 
@@ -1231,6 +1426,21 @@ namespace sht {
 	std::ostream& CrystalData::write(std::ostream& os) const {
 		if(!CompoundData::write(os)) throw std::runtime_error("failed to write fixed size sht::CrystalData component");
 		for(const AtomData& ad : atoms) if(!ad.write(os)) throw std::runtime_error("failed to write all atoms");
+		if(!form.empty()) {
+			if(!os.write(form.data(), form.size())) throw std::runtime_error("failed to write formula string");
+		}
+		if(!name.empty()) {
+			if(!os.write(name.data(), name.size())) throw std::runtime_error("failed to write maerial/phase name string");
+		}
+		if(!symb.empty()) {
+			if(!os.write(symb.data(), symb.size())) throw std::runtime_error("failed to write structure symbol string");
+		}
+		if(!refs.empty()) {
+			if(!os.write(refs.data(), refs.size())) throw std::runtime_error("failed to write references string");
+		}
+		if(!note.empty()) {
+			if(!os.write(note.data(), note.size())) throw std::runtime_error("failed to write note string");
+		}
 		return os;
 	}
 
@@ -1239,11 +1449,54 @@ namespace sht {
 	//@param swp: does the input stream need to be byte swapped (is the endedness mismatched)
 	//@return   : is
 	std::istream& CrystalData::read(std::istream& is, const bool swp) {
+		//read fixed length data
 		if(!CompoundData::read(is, swp)) throw std::runtime_error("failed to read fixed size sht::CrystalData component");
-		int16_t nAt = numAtoms();
-		if(swp) nAt = detail::byteSwap(nAt);
+		int16_t nAt = numAtoms    ();
+		int16_t fSz = formulaLen  ();
+		int16_t mSz = matNameLen  ();
+		int16_t sSz = structSymLen();
+		int16_t rSz = refsLen     ();
+		int16_t nSz = noteLen     ();
+	
+		if(swp) {
+			nAt = detail::byteSwap(nAt);
+			fSz = detail::byteSwap(fSz);
+			mSz = detail::byteSwap(mSz);
+			sSz = detail::byteSwap(sSz);
+			rSz = detail::byteSwap(rSz);
+			nSz = detail::byteSwap(nSz);
+		}
+		if(0 != fSz % 8) fSz += 8 - (fSz % 8);
+		if(0 != mSz % 8) mSz += 8 - (mSz % 8);
+		if(0 != sSz % 8) sSz += 8 - (sSz % 8);
+		if(0 != rSz % 8) rSz += 8 - (rSz % 8);
+		if(0 != nSz % 8) nSz += 8 - (nSz % 8);
+
+		//read atom data
 		atoms.resize(nAt);
 		for(AtomData& ad : atoms) if(!ad.read(is, swp)) throw std::runtime_error("failed to read all atoms");
+
+		//read strings
+		form.resize(fSz, 0);
+		name.resize(mSz, 0);
+		symb.resize(sSz, 0);
+		refs.resize(rSz, 0);
+		note.resize(nSz, 0);
+		if(!form.empty()) {//read formula string if needed
+			if(!is.read((char*)form.data(), form.size())) throw std::runtime_error("failed to read formula string");
+		}
+		if(!name.empty()) {//read material/phase name string if needed
+			if(!is.read((char*)name.data(), name.size())) throw std::runtime_error("failed to read material/phase name string");
+		}
+		if(!symb.empty()) {//read structure symbol string if needed
+			if(!is.read((char*)symb.data(), symb.size())) throw std::runtime_error("failed to read structure symbol string");
+		}
+		if(!refs.empty()) {//read structure symbol string if needed
+			if(!is.read((char*)refs.data(), refs.size())) throw std::runtime_error("failed to read structure symbol string");
+		}
+		if(!note.empty()) {//read structure symbol string if needed
+			if(!is.read((char*)note.data(), note.size())) throw std::runtime_error("failed to read structure symbol string");
+		}
 		return is;
 	}
 
@@ -1258,37 +1511,131 @@ namespace sht {
 		for(size_t i = 0; i < 4; i++) pRot[i] = detail::byteSwap(pRot[i]);
 		weight  () = detail::byteSwap(weight  ());
 		numAtoms() = detail::byteSwap(numAtoms());
+		numAtoms    () = detail::byteSwap(numAtoms    ());
+		formulaLen  () = detail::byteSwap(formulaLen  ());
+		matNameLen  () = detail::byteSwap(matNameLen  ());
+		structSymLen() = detail::byteSwap(structSymLen());
+		refsLen     () = detail::byteSwap(refsLen     ());
+		noteLen     () = detail::byteSwap(noteLen     ());
 		for(AtomData& ad : atoms) ad.byteSwap();
 	}
 
+	//@brief    : set the formula string
+	//@param str: new formula string
+	void CrystalData::setFormula(std::string str) {
+		form = str;
+		if(str.size() > (size_t)std::numeric_limits<int16_t>::max()) throw std::runtime_error("string too long for 16 bit length");
+		formulaLen() = (int16_t)str.size();
+		size_t pad = str.size() % 8;
+		if(pad != 0) form.resize(str.size() + 8 - pad, 0);
+	}
+
+	//@brief    : set the material/phase name string
+	//@param str: new material/phase name string
+	void CrystalData::setName(std::string str) {
+		name = str;
+		if(str.size() > (size_t)std::numeric_limits<int16_t>::max()) throw std::runtime_error("string too long for 16 bit length");
+		matNameLen() = (int16_t)str.size();
+		size_t pad = str.size() % 8;
+		if(pad != 0) name.resize(str.size() + 8 - pad, 0);
+	}
+
+	//@brief    : set the structure symbol string
+	//@param str: new structure symbol string
+	void CrystalData::setStructSym(std::string str) {
+		symb = str;
+		if(str.size() > (size_t)std::numeric_limits<int16_t>::max()) throw std::runtime_error("string too long for 16 bit length");
+		structSymLen() = (int16_t)str.size();
+		size_t pad = str.size() % 8;
+		if(pad != 0) symb.resize(str.size() + 8 - pad, 0);
+	}
+
+	//@brief    : set the references string
+	//@param str: new references string
+	void CrystalData::setRefs(std::string str) {
+		refs = str;
+		if(str.size() > (size_t)std::numeric_limits<int16_t>::max()) throw std::runtime_error("string too long for 16 bit length");
+		refsLen() = (int16_t)str.size();
+		size_t pad = str.size() % 8;
+		if(pad != 0) refs.resize(str.size() + 8 - pad, 0);
+	}
+
+	//@brief    : set the note string
+	//@param str: new note string
+	void CrystalData::setNote(std::string str) {
+		note = str;
+		if(str.size() > (size_t)std::numeric_limits<int16_t>::max()) throw std::runtime_error("string too long for 16 bit length");
+		noteLen() = (int16_t)str.size();
+		size_t pad = str.size() % 8;
+		if(pad != 0) note.resize(str.size() + 8 - pad, 0);
+	}
+
 	////////////////////////////////////////////////////////////////////////////////
-	//                                MaterialData                                //
+	//                                MasterPatternData                                //
 	////////////////////////////////////////////////////////////////////////////////
 
 	//@brief: sanity check the contents of this data block (throw if not)
-	void MaterialData::sanityCheck() const {
+	void MasterPatternData::sanityCheck() const {
 		if(sgEff() < 1 || sgEff() > 230) throw std::runtime_error("invalid effective space group number");
 		if(numXtal() != xtals.size()) throw std::runtime_error("# crystals != crystals size");
+		if(numXtal() != simul.size()) throw std::runtime_error("# crystals != simulation metadata size");
 		if(! (1 == pijk() || -1 == pijk())) throw std::runtime_error("pijk must be +/-1");
 		if(! (97 == rotSense() || 112 == rotSense())) throw std::runtime_error("rotation sense must be 'a' or 'p'");
-		for(size_t i = 0; i < 4; i++) if(0 != resBytes()[i]) throw std::runtime_error("non-zero reserved bytes");
+		switch(modality()) {
+			case Modality::Unknown: break;
+			case Modality::EBSD   : break;
+			case Modality::ECP    : break;
+			case Modality::TKD    : break;
+			case Modality::PED    : break;
+			case Modality::Laue   : break;
+			default: throw std::runtime_error("invalid modality flag");       
+		}
+		switch(vendor()) {
+			case Vendor::Unknown: break;
+			case Vendor::EMsoft : break;
+			default: throw std::runtime_error("invalid vendor flag");       
+		}
+		if(0 == simMetaSize()) {
+			for(const std::unique_ptr<SimulationData>& p : simul) {
+				if(NULL != p.get()) throw std::runtime_error("non-NULL simulation data for 0 size");
+			}
+		} else {
+			for(const std::unique_ptr<SimulationData>& p : simul) {
+				if(NULL == p.get()) throw std::runtime_error("NULL simulation data for nonzero size");
+				if(p->size() != simMetaSize()) throw std::runtime_error("simulation data size doesn't match header size");
+				if(!p->forModality(modality())) throw std::runtime_error("simulation data modality not valid for master pattern modality");
+				if(p->getVendor() != vendor()) throw std::runtime_error("simulation data vendor doesn't match master pattern verndor");
+			}
+		}
 	}
 
 	//@brief    : compute the CRC-32C hash of this data block
 	//@param crc: initial hash value
 	//@return   : new hash value
-	uint32_t MaterialData::computeHash(uint32_t crc) const {
+	uint32_t MasterPatternData::computeHash(uint32_t crc) const {
 		crc = CompoundData::computeHash(crc);//start by hashing fixed length part
 		for(const CrystalData& x : xtals) crc = x.computeHash(crc);
+		if(0 != simMetaSize()) {
+			for(const std::unique_ptr<SimulationData>& p : simul) {
+				if(NULL == p.get()) throw std::runtime_error("NULL simulation data for nonzero size");
+				crc = p->computeHash(crc);
+			}
+		}
 		return crc;
 	}
 
 	//@brief   : write data to an ostream
 	//@param os: ostream to write to
 	//@return  : os
-	std::ostream& MaterialData::write(std::ostream& os) const {
-		if(!CompoundData::write(os)) throw std::runtime_error("failed to write fixed size sht::MaterialData component");
+	std::ostream& MasterPatternData::write(std::ostream& os) const {
+		if(!CompoundData::write(os)) throw std::runtime_error("failed to write fixed size sht::MasterPatternData component");
 		for(const CrystalData& x : xtals) if(!x.write(os)) throw std::runtime_error("failed to write all crystals");
+		if(0 != simMetaSize()) {
+			for(const std::unique_ptr<SimulationData>& p : simul) {
+				if(NULL == p.get()) throw std::runtime_error("NULL simulation data for nonzero size");
+				if(!p->write(os)) throw std::runtime_error("failed to write all simulation metadata");
+			}
+		}
 		return os;
 	}
 
@@ -1296,11 +1643,33 @@ namespace sht {
 	//@param is : istream to read from
 	//@param swp: does the input stream need to be byte swapped (is the endedness mismatched)
 	//@return   : is
-	std::istream& MaterialData::read(std::istream& is, const bool swp) {
+	std::istream& MasterPatternData::read(std::istream& is, const bool swp) {
 		if(!CompoundData::read(is, swp)) throw std::runtime_error("failed to read fixed size sht::CrystalData component");
 		xtals.resize(numXtal());//8 bit, no swap needed
+		simul.resize(numXtal());//8 bit, no swap needed
 		for(CrystalData& x : xtals) if(!x.read(is, swp)) throw std::runtime_error("failed to read all crystals");
+		if(0 != simMetaSize()) {//dont need to byteswap since 0 is a palindrome
+			std::unique_ptr<SimulationData> data = SimulationData::Factory(modality(), vendor());
+			if(NULL != data.get()) {
+				if(data->size() != simMetaSize()) throw std::runtime_error("simulation data size mismatch");
+				for(std::unique_ptr<SimulationData>& p : simul) {
+					p = std::move(SimulationData::Factory(modality(), vendor()));
+					if(!p->read(is, swp)) throw std::runtime_error("failed to read all simulation data");
+				}
+			} else {
+				throw std::runtime_error("unable to construct simulation meta data for modality/vendor pair");//could read into byte buffer and compute hash instead
+			}
+		}
 		return is;
+	}
+
+	//@brief: byte swap data
+	void MasterPatternData::byteSwap() {
+		simMetaSize() = detail::byteSwap(simMetaSize());
+		for(CrystalData& x : xtals) x.byteSwap();
+		for(std::unique_ptr<SimulationData>& p : simul) {
+			if(NULL != p.get()) p->byteSwap();
+		}
 	}
 
 	////////////////////////////////////////////////////////////////////////////////
@@ -1656,25 +2025,21 @@ namespace sht {
 	void File::sanityCheck() const {
 		//start by sanity checking pieces
 		header.sanityCheck();
-		material.sanityCheck();
-		if(NULL != simulMeta.get()) simulMeta->sanityCheck();
+		mpData.sanityCheck();
+		harmonics.sanityCheck();
 
-		//next sanity check relationships
-		if(NULL != simulMeta.get()) {
-			if(simulMeta->size() != header.simDataSize()) throw std::runtime_error("simulation metadata size doesn't match header size");
-			if(simulMeta->getVendor() != header.vendor()) throw std::runtime_error("simulation metadata vendor doesn't match header");
+		//check that everything is self consistent
+		if(NULL != mpData.simul.front().get()) {
+			if(!mpData.simul.front()->forModality(header.modality())) throw std::runtime_error("file modality doesn't match simulation modality");
 		}
 	}
 
 	//@brief    : compute the CRC-32C hash of this data block
 	//@param crc: initial hash value
-	//@param sim: simulation data types if unknown (or NULL if size was zero)
 	//@return   : new hash value
-	uint32_t File::computeHash(uint32_t crc, std::vector<char> const * sim) const {
+	uint32_t File::computeHash(uint32_t crc) const {
 		crc = header.computeHash(crc);
-		crc = material.computeHash(crc);
-		if(NULL != simulMeta.get()) crc = simulMeta->computeHash(crc);
-		else if(NULL != sim) crc = detail::crc32c(sim->data(), sim->size(), crc);
+		crc = mpData.computeHash(crc);
 		crc = harmonics.computeHash(crc);
 		return crc;
 	}
@@ -1683,13 +2048,12 @@ namespace sht {
 	//@param os: ostream to write to
 	//@return  : os
 	std::ostream& File::write(std::ostream& os) const {
+		if(!os) throw std::runtime_error("sht::Files cannot write to invalid stream");
 		sanityCheck();
 		if(0 != os.tellp()) throw std::runtime_error("sht::Files must start at byte 0");
-		int32_t crc = 0x00000000;
-		crc = computeHash(crc, NULL);
+		const int32_t crc = computeHash(0x00000000);
 		if(!header   .write(os)) throw std::runtime_error("failed to write sht header");
-		if(!material .write(os)) throw std::runtime_error("failed to write sht material");
-		if(NULL != simulMeta.get() )if(!simulMeta->write(os)) throw std::runtime_error("failed to write sht simulation metadata");
+		if(!mpData   .write(os)) throw std::runtime_error("failed to write sht master pattern data");
 		if(!harmonics.write(os)) throw std::runtime_error("failed to write sht harmonics");
 		if(!os.write((char*)&crc, 4)) throw std::runtime_error("failed to write sht checksum"); 
 		return os;
@@ -1703,72 +2067,147 @@ namespace sht {
 		if(!header.read(is)) throw std::runtime_error("failed to read sht header");
 		const bool swp = header.endianMismatch();//is the file endedness different than the system?
 
-		//next allocate vendor specific data if needed
-		int16_t simSize = header.simDataSize();
-		if(swp) simSize = detail::byteSwap(simSize);
-		if(0 != simSize) {
-			if(80 == simSize && Vendor::EMsoft == header.vendor() && Modality::EBSD == header.modality()) {
-				simulMeta = std::unique_ptr<EMsoftED>(new EMsoftED);
-			}
-		}
-
 		//read data blocks
-		std::vector<char> skipedData(simSize);
-		if(!material .read(is, swp)) throw std::runtime_error("failed to read sht material");
-		if(NULL != simulMeta.get() ) {
-			if(!simulMeta->read(is, swp)) throw std::runtime_error("failed to read sht simulation metadata");
-		} else if(0 != simSize) {
-			is.read(skipedData.data(), skipedData.size());//skip over unknown data type
-		}
+		if(!mpData   .read(is, swp)) throw std::runtime_error("failed to read sht master pattern data");
 		if(!harmonics.read(is, swp)) throw std::runtime_error("failed to read sht harmonics");
 		if(!is.read((char*)&crcHash, 4)) throw std::runtime_error("failed to read sht checksum"); 
 
 		//comppute checksum and compare to file
-		int32_t crc = 0x00000000;
-		crc = computeHash(crc, &skipedData);
+		const int32_t crc = computeHash(0x00000000);
 		if(crc != crcHash) throw std::runtime_error("file corrupted (incorrect checksum)");
 
 		//byteswap file if needed
 		if(swp) {
 			header.byteSwap();
-			material.byteSwap();
-			if(NULL != simulMeta.get()) simulMeta->byteSwap();
+			mpData.byteSwap();
 			harmonics.byteSwap();
 		}
-
 		return is;
 	}
 
-	//@brief    : build up materials data from EMsoft style data
-	//@param sgN: space group number [1,230]
-	//@param sgS: space group setting [1,2]
-	//@param nAt: number of atoms
-	//@param aTy: atom types (nAt atomic numbers)
-	//@param aCd: atom coordinates, (nAt * 5 floats {x, y, z, occupancy, Debye-Waller in nm^2})
-	//@param lat: lattice parameters {a, b, a, alpha, beta, gamma} (in nm / degree)
-	void File::setEMDataMat(int32_t sgN, int32_t sgS, int32_t nAt, int32_t * aTy, float * aCd, float * lat) {
-		//set material to single crystal
-		material.numXtal () =           1  ;
-		material.sgEff   () = (uint8_t) sgN;
-		material.pijk    () =           1  ;//EMsoft is always pijk +1
-		material.rotSense() =           112;//EMsoft is always passive
-		material.xtals.resize(1);
-		CrystalData& xtal = material.xtals.front();
+	//@brief     : create an file without any master pattern data from EMsoft style data
+	//@param iprm: integer parameters {sgn, mod, bw}
+	//             sgn - effective space group number of spherical function
+	//             mod - modality (see enumeration, EBSD == 1)
+	//             bw  - bandwidth
+	//@param fprm: float {keV, sig, tht, res} e.g. {20.0, 70.0, 0.0, 0.0} for typical EBSD
+	//             keV - beam energy in keV
+	//             sig - primary tilt angle
+	//             tht - secondary tilt angle
+	//             res - reserved parameter
+	//@param doi : file DOI string (null terminated)
+	//@param note: file level notes (null terminated)
+	//@param alm : actual harmonics (uncompressed format)
+	//@return    : error code (void return function throws instead)
+	void File::initFileEMsoft   (int32_t const * iprm, float const * fprm, char const * doi, char const * note, double const * alm) {
+		//build header
+		header.modality      () = (Modality) iprm[1];
+		header.beamEnergy    () =            fprm[0];
+		header.primaryAngle  () =            fprm[1];
+		header.secondaryAngle() =            fprm[2];
+		header.reservedParam () =            fprm[3];
+		header.setDoi  (doi );
+		header.setNotes(note);
 
-		//build crystal
-		xtal.sgNum () = (uint8_t) sgN;
-		xtal.sgSet () = (uint8_t) sgS;
+		//build master pattern data
+		mpData.xtals.clear();
+		mpData.simul.clear();
+		mpData.numXtal() = 0;
+		mpData.sgEff      () = (uint8_t ) iprm[0];
+		mpData.pijk       () =            1      ;//EMsoft is always pijk +1
+		mpData.rotSense   () =            112    ;//EMsoft is always passive
+		mpData.modality   () = (Modality) iprm[1];
+		mpData.vendor     () = Vendor::EMsoft    ;
+		mpData.simMetaSize() = 0                 ;
+
+		//build harmonics
+		const int8_t  zFlg = HarmonicsData::SpaceGroupRot(iprm[0]);
+		const int8_t  cFlg = HarmonicsData::SpaceGroupCmp(iprm[0]);
+		const int32_t nHrm = HarmonicsData::NumHarm((int16_t) iprm[2], zFlg, cFlg);
+		harmonics.bw     () = (int16_t) iprm[2];
+		harmonics.zRot   () =           zFlg   ;
+		harmonics.cmpFlg () =           cFlg   ;
+		harmonics.doubCnt() = (int32_t) nHrm   ;
+		harmonics.alm.resize(nHrm);
+		harmonics.packHarm((std::complex<double>*)alm, harmonics.alm.data());
+	}
+	int  File::initFileEMsoftRet(int32_t const * iprm, float const * fprm, char const * doi, char const * note, double const * alm) {
+		try {
+			initFileEMsoft(iprm, fprm, doi, note, alm);
+			return 0;
+		} catch (std::exception& e) {
+			std::cerr << e.what() << '\n';
+			return 1;
+		} catch (...) {
+			std::cerr << "unknown error\n";
+			return 2;
+		}
+	}
+
+	//@brief     : add master pattern data to a file
+	//@param iprm: integer paramters {sgn, sgs, nat, nel, elm, nsx, npx, grd}
+	//       crystal data
+	//             sgn - space group number
+	//             sgs - space group setting
+	//             nat - number of atoms
+	//       simulation data
+	//             nel - number of electrons
+	//             elm - electron multiplier
+	//             nsx - numsx (monte carlo grid size)
+	//             npx - npx (master pattern grid size)
+	//             grd - lattitude grid type
+	//@param fprm: floating point parameters {a, b, c, alp, bet, gam, sgs, sge, sst, omg, kev, emn, esz, dmx, dmn, thk, c1, c2, c3, ddd, dmi}
+	//       crystal data
+	//             a   - lattice constant a in nm
+	//             b   - lattice constant b in nm
+	//             c   - lattice constant c in nm
+	//             alp - lattice constant alpha in degrees
+	//             bet - lattice constant beta  in degrees
+	//             gam - lattice constant gamma in degrees
+	//       simulation data
+	//             sgs - sigma start
+	//             sge - sigma end
+	//             sst - sigma step
+	//             omg - omega
+	//             kev - keV
+	//             emn - eHistMin
+	//             esz - eBinSize
+	//             dmx - depthMax
+	//             dmn - depthMin
+	//             thk - thickness
+	//             c1  - c1
+	//             c2  - c2
+	//             c3  - c3
+	//             ddd - sigDbDiff
+	//             dmi - dMin
+	//@param aTy : atom types (nAt atomic numbers)
+	//@param aCd : atom coordinates (nAt * 5 floats {x, y, z, occupancy, Debye-Waller in nm^2})
+	//@param vers: EMsoft version string (8 characters, null termination not required)
+	//@param cprm: string parameters as one concatenated sequence will null seperators (+ final null terminator)
+	//             {frm, nam, syb, ref}
+	//             frm - formula string (null terimated)
+	//             nam - material phase/name string (null terminated)
+	//             syb - structure symbol string (null terminated)
+	//             ref - reference string (null terminated)
+	//             nte - note string (null terminated)
+	//@return    : error code (void return function throws instead)
+	void File::addDataEMsoft(int32_t * iprm, float * fprm, int32_t * aTy, float * aCd, char const * vers, char const * cprm) {
+		//add new crystal structure
+		mpData.xtals.resize(mpData.xtals.size() + 1);
+		CrystalData& xtal = mpData.xtals.back();
+		xtal.sgNum () = (uint8_t) iprm[0];
+		xtal.sgSet () = (uint8_t) iprm[1];
 		xtal.sgAxis() = CrystalData::Axis::Default;
 		xtal.sgCell() = CrystalData::Cell::Default;
 		xtal.oriX  () = 0.0f;
 		xtal.oriY  () = 0.0f;
 		xtal.oriZ  () = 0.0f;
-		std::copy(lat, lat + 6, xtal.lat());
+		std::copy(fprm, fprm + 6, xtal.lat());
 		xtal.rot()[0] = 1.0f; xtal.rot()[1] = 0.0f; xtal.rot()[2] = 0.0f; xtal.rot()[3] = 0.0f;
 		xtal.weight() = 1.0f;
-		xtal.numAtoms() = (int16_t) nAt;
-		xtal.atoms.resize((int16_t) nAt);
-		for(int32_t i = 0; i < nAt; i++) {
+		xtal.numAtoms() = (int16_t) iprm[2];
+		xtal.atoms.resize(iprm[2]);
+		for(size_t i = 0; i < xtal.atoms.size(); i++) {
 			//save atomic coordinates * 24
 			for(size_t j = 0; j < 3; j++) {
 				//start by bringing to [0,1]
@@ -1790,113 +2229,70 @@ namespace sht {
 					case 2: xtal.atoms[i].z() = x; break;
 				}
 			}
+
+			//save other parameters
 			xtal.atoms[i].occ   () = aCd[5*i+3];
 			xtal.atoms[i].charge() = 0.0f      ;
 			xtal.atoms[i].debWal() = aCd[5*i+4];
 			xtal.atoms[i].atZ   () = aTy[  i  ];
 		}
-	}
-
-	//@brief     : build up ebsd simulation data from EMsoft style data
-	//@param fprm: floating point parameters (float32 EMsoftED parameters in order)
-	//@param iprm: integer parameters {# electrons, electron multiplier, numsx, npx, latgridtype}
-	void File::setEMDataSim(float * fprm, int32_t * iprm) {
+		char const * p = cprm;
+		std::string form(p); p += form.size();
+		std::string name(p); p += name.size();
+		std::string symb(p); p += symb.size();
+		std::string refs(p); p += refs.size();
+		std::string note(p); p += note.size();
+		xtal.setFormula(form);
+		xtal.setName(name);
+		xtal.setStructSym(symb);
+		xtal.setRefs(refs);
+		xtal.setNote(note);
+	
+		//add new simulation data
+		mpData.simul.resize(mpData.simul.size() + 1);
 		std::unique_ptr<EMsoftED> ptr = std::unique_ptr<EMsoftED>(new EMsoftED);
-		ptr->sigStart () = fprm[ 0];
-		ptr->sigEnd   () = fprm[ 1];
-		ptr->sigStep  () = fprm[ 2];
-		ptr->omega    () = fprm[ 3];
-		ptr->keV      () = fprm[ 4];
-		ptr->eHistMin () = fprm[ 5];
-		ptr->eBinSize () = fprm[ 6];
-		ptr->depthMax () = fprm[ 7];
-		ptr->depthStep() = fprm[ 8];
-		ptr->thickness() = fprm[ 9];
-		ptr->c1       () = fprm[10];
-		ptr->c2       () = fprm[11];
-		ptr->c3       () = fprm[12];
-		ptr->sigDbDiff() = fprm[13];
-		ptr->dMin     () = fprm[14];
+		std::copy(vers, vers + 8, ptr->emsoftVersion());
+		ptr->sigStart () = fprm[6+ 0];
+		ptr->sigEnd   () = fprm[6+ 1];
+		ptr->sigStep  () = fprm[6+ 2];
+		ptr->omega    () = fprm[6+ 3];
+		ptr->keV      () = fprm[6+ 4];
+		ptr->eHistMin () = fprm[6+ 5];
+		ptr->eBinSize () = fprm[6+ 6];
+		ptr->depthMax () = fprm[6+ 7];
+		ptr->depthStep() = fprm[6+ 8];
+		ptr->thickness() = fprm[6+ 9];
+		ptr->c1       () = fprm[6+10];
+		ptr->c2       () = fprm[6+11];
+		ptr->c3       () = fprm[6+12];
+		ptr->sigDbDiff() = fprm[6+13];
+		ptr->dMin     () = fprm[6+14];
 
-		int64_t numEl = iprm[0];
-		numEl *= iprm[1];
+		int64_t numEl = iprm[3+0];
+		numEl *= iprm[3+1];
 		ptr->totNumEl   () =           numEl  ;
-		ptr->numSx      () = (int16_t) iprm[2];
-		ptr->numPx      () = (int16_t) iprm[3];
-		ptr->latGridType() = (int8_t ) iprm[4];
+		ptr->numSx      () = (int16_t) iprm[3+2];
+		ptr->numPx      () = (int16_t) iprm[3+3];
+		ptr->latGridType() = (int8_t ) iprm[3+4];
 
-		simulMeta = std::move(ptr);
+		if(!mpData.simul.empty()) {
+			if(mpData.simul.back().get() == NULL) throw std::runtime_error("mixing null/non-null simulation data pointers");
+			if(ptr->size() != mpData.simMetaSize()) throw std::runtime_error("mixing different size simulation data pointers");
+		} else {
+			mpData.simMetaSize() = ptr->size();//save size on first addition
+		}
+		mpData.simul.push_back(std::move(ptr));
 	}
-
-	//@brief    : build up harmonics from EMsoft style data
-	//@param bw : bandwidth
-	//@param sg : space group number (to determine symmetry flags)
-	//@param alm: actual harmonics (uncompressed format)
-	void File::setEMDataHrm(int32_t bw, const uint8_t sg, double * alm) {
-		const int8_t zFlg = HarmonicsData::SpaceGroupRot(sg);
-		const int8_t cFlg = HarmonicsData::SpaceGroupCmp(sg);
-		const int32_t nHrm = HarmonicsData::NumHarm((int16_t) bw, zFlg, cFlg);
-		harmonics.bw     () = (int16_t) bw  ;
-		harmonics.zRot   () =           zFlg;
-		harmonics.cmpFlg () =           cFlg;
-		harmonics.doubCnt() = (int32_t) nHrm;
-		harmonics.alm.resize(nHrm);
-		harmonics.packHarm((std::complex<double>*)alm, harmonics.alm.data());
-	}
-
-	//@brief    : write a file using EMsoft style EBSD data
-	//@prief fn : file name to write
-	//@prief nt : notes string
-	//@prief doi: doi string
-	//@param sgN: space group number [1,230]
-	//@param sgS: space group setting [1,2]
-	//@param nAt: number of atoms
-	//@param aTy: atom types (nAt atomic numbers)
-	//@param aCd: atom coordinates, (nAt * 5 floats {x, y, z, occupancy, Debye-Waller in nm^2})
-	//@param lat: lattice parameters {a, b, a, alpha, beta, gamma} (in nm / degree)
-	//@param fprm: floating point parameters (float32 EMsoftED parameters in order)
-	//@param iprm: integer parameters {# electrons, electron multiplier, numsx, npx, latgridtype}
-	//@param bw : bandwidth
-	//@param alm: actual harmonics (uncompressed format)
-	void File::EMsoftEBSD(char * fn, char const * nt, char const * doi,
-	                      int32_t sgN, int32_t sgS, int32_t nAt, int32_t * aTy, float * aCd, float * lat,
-	                      float * fprm, int32_t * iprm,
-	                      int32_t bw, double * alm) {
-		//start by building up actual data
-		File f;
-		f.setEMDataMat(sgN, sgS, nAt, aTy, aCd, lat);
-		f.setEMDataSim(fprm, iprm);
-		f.setEMDataHrm(bw, sgN, alm);
-
-		// //now build up header
-		f.header.modality   () = Modality::EBSD  ;
-		f.header.vendor     () = Vendor  ::EMsoft;
-		f.header.simDataSize() = (int16_t) f.simulMeta->size();
-		f.header.setNotes(nt );
-		f.header.setDoi  (doi);
-		f.header.beamEnergy    () = fprm[ 4];//keV
-		f.header.primaryAngle  () = fprm[ 0];//sigstart
-		f.header.secondaryAngle() = fprm[ 3];//omega
-
-		//sanity check and write
-		f.sanityCheck();
-		std::ofstream os(fn, std::ios::out | std::ios::binary);
-		if(!f.write(os)) throw std::runtime_error("failed to write data to file");
-	}
-
-	int File::EMsoftEBSDRet(char * fn, char const * nt, char const * doi,
-	                        int32_t sgN, int32_t sgS, int32_t nAt, int32_t * aTy, float * aCd, float * lat,
-	                        float * fprm, int32_t * iprm,
-	                        int32_t bw, double * alm) {
+	int  File::addDataEMsoftRet(int32_t * iprm, float * fprm, int32_t * aTy, float * aCd, char const * vers, char const * cprm) {
 		try {
-			EMsoftEBSD(fn, nt, doi, sgN, sgS, nAt, aTy, aCd, lat, fprm, iprm, bw, alm);
+			addDataEMsoft(iprm, fprm, aTy, aCd, vers, cprm);
 			return 0;
 		} catch (std::exception& e) {
 			std::cerr << e.what() << '\n';
 			return 1;
 		} catch (...) {
 			std::cerr << "unknown error\n";
-			return 1;
+			return 2;
 		}
 	}
 

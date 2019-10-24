@@ -727,61 +727,6 @@ namespace sht {
 		//@return    : error code (void return function throws instead)
 		void addDataEMsoft   (int32_t * iprm, float * fprm, int32_t * aTy, float * aCd, char const * vers, char const * cprm);
 		int  addDataEMsoftRet(int32_t * iprm, float * fprm, int32_t * aTy, float * aCd, char const * vers, char const * cprm);
-
-/*
-		//@brief    : build up materials data from EMsoft style data
-		//@param sgN: space group number [1,230]
-		//@param sgS: space group setting [1,2]
-		//@param nAt: number of atoms
-		//@param aTy: atom types (nAt atomic numbers)
-		//@param aCd: atom coordinates, (nAt * 5 floats {x, y, z, occupancy, Debye-Waller in nm^2})
-		//@param lat: lattice parameters {a, b, a, alpha, beta, gamma} (in nm / degree)
-		//@param frm: formula string
-		//@param nam: material/phase name
-		//@param syb: structure symbol
-		//@param ref: structure source (prefer doi string, fallback to bibtex)
-		//@param nt : material notes
-		void setEMDataMat(int32_t sgN, int32_t sgS, int32_t nAt, int32_t * aTy, float * aCd, float * lat, char const * frm, char const * nam, char const * syb, char const * ref, char const * nt);
-
-		//@brief     : build up ebsd simulation data from EMsoft style data
-		//@param vers: EMsoft version string (8 characters)
-		//@param fprm: floating point parameters (float32 EMsoftED parameters in order)
-		//@param iprm: integer parameters {# electrons, electron multiplier, numsx, npx, latgridtype}
-		void setEMDataSim(char const * vers, float * fprm, int32_t * iprm);
-
-		//@brief    : build up harmonics from EMsoft style data
-		//@param bw : bandwidth
-		//@param sg : space group number (to determine symmetry flags)
-		//@param alm: actual harmonics (uncompressed format)
-		void setEMDataHrm(int32_t bw, const uint8_t sg, double * alm);
-
-		//@brief    : write a file using EMsoft style EBSD data
-		//@prief fn : file name to write
-		//@prief nt : notes string
-		//@prief doi: doi string
-		//@param sgN: space group number [1,230]
-		//@param sgS: space group setting [1,2]
-		//@param nAt: number of atoms
-		//@param aTy: atom types (nAt atomic numbers)
-		//@param aCd: atom coordinates, (nAt * 5 floats {x, y, z, occupancy, Debye-Waller in nm^2})
-		//@param lat: lattice parameters {a, b, a, alpha, beta, gamma} (in nm / degree)
-		//@param fprm: floating point parameters (float32 EMsoftED parameters in order)
-		//@param iprm: integer parameters {# electrons, electron multiplier, numsx, npx, latgridtype}
-		//@param bw : bandwidth
-		//@param alm: actual harmonics (uncompressed format)
-		static void EMsoftEBSD(char * fn, char const * nt, char const * doi,
-		                       int32_t sgN, int32_t sgS, int32_t nAt, int32_t * aTy, float * aCd, float * lat,
-		                       float * fprm, int32_t * iprm,
-		                       int32_t bw, double * alm);
-
-		//@brief : call the void return version of EMsoftEBSD catching any exceptions
-		//@return: 0 if no exceptions were thrown, 1 otherwise
-		//@note  : for fortran interoperability
-		static int EMsoftEBSDRet(char * fn, char const * nt, char const* doi,
-		                         int32_t sgN, int32_t sgS, int32_t nAt, int32_t * aTy, float * aCd, float * lat,
-		                         float * fprm, int32_t * iprm,
-		                         int32_t bw, double * alm);
-		*/
 	};
 
 }
@@ -2194,6 +2139,7 @@ namespace sht {
 	void File::addDataEMsoft(int32_t * iprm, float * fprm, int32_t * aTy, float * aCd, char const * vers, char const * cprm) {
 		//add new crystal structure
 		mpData.xtals.resize(mpData.xtals.size() + 1);
+		++mpData.numXtal();
 		CrystalData& xtal = mpData.xtals.back();
 		xtal.sgNum () = (uint8_t) iprm[0];
 		xtal.sgSet () = (uint8_t) iprm[1];
@@ -2249,7 +2195,6 @@ namespace sht {
 		xtal.setNote(note);
 	
 		//add new simulation data
-		mpData.simul.resize(mpData.simul.size() + 1);
 		std::unique_ptr<EMsoftED> ptr = std::unique_ptr<EMsoftED>(new EMsoftED);
 		std::copy(vers, vers + 8, ptr->emsoftVersion());
 		ptr->sigStart () = fprm[6+ 0];

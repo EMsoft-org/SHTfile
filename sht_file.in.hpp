@@ -725,8 +725,8 @@ namespace sht {
 		//             ref - reference string (null terminated)
 		//             nte - note string (null terminated)
 		//@return    : error code (void return function throws instead)
-		void addDataEMsoft   (int32_t * iprm, float * fprm, int32_t * aTy, float * aCd, char const * vers, char const * cprm);
-		int  addDataEMsoftRet(int32_t * iprm, float * fprm, int32_t * aTy, float * aCd, char const * vers, char const * cprm);
+		void addDataEMsoft   (int32_t const * iprm, float const * fprm, int32_t const * aTy, float const * aCd, char const * vers, char const * cprm);
+		int  addDataEMsoftRet(int32_t const * iprm, float const * fprm, int32_t const * aTy, float const * aCd, char const * vers, char const * cprm);
 	};
 
 }
@@ -2136,7 +2136,7 @@ namespace sht {
 	//             ref - reference string (null terminated)
 	//             nte - note string (null terminated)
 	//@return    : error code (void return function throws instead)
-	void File::addDataEMsoft(int32_t * iprm, float * fprm, int32_t * aTy, float * aCd, char const * vers, char const * cprm) {
+	void File::addDataEMsoft(int32_t const * iprm, float const * fprm, int32_t const * aTy, float const * aCd, char const * vers, char const * cprm) {
 		//add new crystal structure
 		mpData.xtals.resize(mpData.xtals.size() + 1);
 		++mpData.numXtal();
@@ -2228,7 +2228,7 @@ namespace sht {
 		}
 		mpData.simul.push_back(std::move(ptr));
 	}
-	int  File::addDataEMsoftRet(int32_t * iprm, float * fprm, int32_t * aTy, float * aCd, char const * vers, char const * cprm) {
+	int  File::addDataEMsoftRet(int32_t const  * iprm, float const  * fprm, int32_t const  * aTy, float const  * aCd, char const * vers, char const * cprm) {
 		try {
 			addDataEMsoft(iprm, fprm, aTy, aCd, vers, cprm);
 			return 0;

@@ -1598,7 +1598,7 @@ namespace sht {
 			if(NULL != data.get()) {
 				if(data->size() != simMetaSize()) throw std::runtime_error("simulation data size mismatch");
 				for(std::unique_ptr<SimulationData>& p : simul) {
-					p = std::move(SimulationData::Factory(modality(), vendor()));
+					p = SimulationData::Factory(modality(), vendor());
 					if(!p->read(is, swp)) throw std::runtime_error("failed to read all simulation data");
 				}
 			} else {
@@ -2183,11 +2183,11 @@ namespace sht {
 			xtal.atoms[i].atZ   () = aTy[  i  ];
 		}
 		char const * p = cprm;
-		std::string form(p); p += form.size();
-		std::string name(p); p += name.size();
-		std::string symb(p); p += symb.size();
-		std::string refs(p); p += refs.size();
-		std::string note(p); p += note.size();
+		std::string form(p); p += form.size() + 1;
+		std::string name(p); p += name.size() + 1;
+		std::string symb(p); p += symb.size() + 1;
+		std::string refs(p); p += refs.size() + 1;
+		std::string note(p); p += note.size() + 1;
 		xtal.setFormula(form);
 		xtal.setName(name);
 		xtal.setStructSym(symb);
@@ -2224,7 +2224,7 @@ namespace sht {
 			if(mpData.simul.back().get() == NULL) throw std::runtime_error("mixing null/non-null simulation data pointers");
 			if(ptr->size() != mpData.simMetaSize()) throw std::runtime_error("mixing different size simulation data pointers");
 		} else {
-			mpData.simMetaSize() = ptr->size();//save size on first addition
+			mpData.simMetaSize() = (int16_t)ptr->size();//save size on first addition
 		}
 		mpData.simul.push_back(std::move(ptr));
 	}
